@@ -3,3 +3,8 @@ procedure main (Int a, Bool b, String c){
 	String celina ;
 	 Bool kasi    ; AllinaType acoto;
 }
+procedure 
+add (Int a, Int b){
+	return 0;
+}
+

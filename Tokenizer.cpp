@@ -126,14 +126,12 @@ namespace Tokenizer {
 	}
 
 	TokenStream::Iterator& TokenStream::Iterator::match(Token::TokenType type) {
-
 		auto con = [type](Token t) {
 			return t.type == type;
 		};
 		return match_impl(con);
 	}
 	TokenStream::Iterator& TokenStream::Iterator::match(std::string str) {
-
 		auto con = [str](Token t) {
 			return t.value == str;
 		};

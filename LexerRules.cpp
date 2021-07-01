@@ -40,7 +40,13 @@ namespace LexerRules {
 
 	//string-WS
 	// keywords
-	std::vector<std::string> preambleList = { "procedure","type","function","alias","class","send","receive" };
+	std::vector<std::string> preambleList = { 
+		"procedure","type","function","alias","class", // types
+		"namespace",
+		"send","receive", // OOP
+		"call", // function OP
+		"not","and","or","xor" // logical operators
+	};
 	std::vector<std::string> keywordList = { "return","while","if","_","for","switch","lambda" };
 	//operators
 	// //
@@ -55,6 +61,8 @@ namespace LexerRules {
 											"(",")","{","}","[","]","<",">",
 											"+","-","*","/","%",
 											".",",","/*","*/","::" };
+
+	std::vector<std::string> unaryOperatorList = { "call","not" };
 	//literals
 
 	// Type - begin from Upercase letters

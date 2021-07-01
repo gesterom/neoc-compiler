@@ -27,11 +27,18 @@ namespace GrammarParser {
 			class Varible;
 			class Arguments;
 		}
+		namespace Expressions {
+			class Expression;
+			class Literal;
+			class ProcedureCall;
+			class OperatorCall;
+		}
 		namespace Statements {
 			class Statement;
 			class Block;
 			class VaribleDeclaration;
 			class VaribleDeclDefinition;
+			class Return;
 		}
 		class File;
 
@@ -39,9 +46,14 @@ namespace GrammarParser {
 		class IVisitor {
 		public:
 			virtual void visit(File*) = 0;
+			virtual void visit(Expressions::Expression*) = 0;
+			virtual void visit(Expressions::ProcedureCall*) = 0;
+			virtual void visit(Expressions::OperatorCall*) = 0;
+			virtual void visit(Expressions::Literal*) = 0;
 			virtual void visit(Statements::Block*) = 0;
 			virtual void visit(Statements::VaribleDeclaration*) = 0;
 			virtual void visit(Statements::VaribleDeclDefinition*) = 0;
+			virtual void visit(Statements::Return*) = 0;
 			virtual void visit(Declaration::Procedure*) = 0;
 			virtual void visit(Declaration::Type*) = 0;
 			virtual void visit(Declaration::Varible*) = 0;
@@ -86,6 +98,32 @@ namespace GrammarParser {
 				}
 			};
 		}
+		namespace Expressions {
+			class Expression : public Node{};
+
+			class ProcedureCall : public Expression {
+			public:
+				virtual void visit(IVisitor* visitor) {
+					visitor->visit(this);
+				}
+			};
+			class OperatorCall : public Expression {
+			public:
+				Expressions::Expression* left;
+				Expressions::Expression* right;
+				Token op;
+				virtual void visit(IVisitor* visitor) {
+					visitor->visit(this);
+				}
+			};
+			class Literal : public Expression {
+			public:
+				Token value;
+				virtual void visit(IVisitor* visitor) {
+					visitor->visit(this);
+				}
+			};
+		}
 		namespace Statements {
 			class Statement : public Node {};
 			class Block : public Statement {
@@ -108,6 +146,13 @@ namespace GrammarParser {
 				Token name;
 				Token type;
 				//Expresion expr;
+				virtual void visit(IVisitor* visitor) {
+					visitor->visit(this);
+				}
+			};
+			class Return : public Statement {
+			public:
+				Expressions::Expression* exp;
 				virtual void visit(IVisitor* visitor) {
 					visitor->visit(this);
 				}
@@ -148,6 +193,18 @@ namespace GrammarParser {
 				p->body->visit(this);
 				this->tab--;
 			}
+			virtual void visit(Statements::Return* r) {
+				print() << "[Return] : " << std::endl;
+				this->tab++;
+				r->exp->visit(this);
+				this->tab--;
+			}
+			virtual void visit(Expressions::Expression*) {}
+			virtual void visit(Expressions::Literal* l ) {
+				print() << "Literal : " << l->value << std::endl;
+			}
+			virtual void visit(Expressions::OperatorCall*) {}
+			virtual void visit(Expressions::ProcedureCall*) {}
 			virtual void visit(Declaration::Type*) {};
 			virtual void visit(Statements::VaribleDeclaration* var) {
 				print() << var->type << " : " << var->name << std::endl;
@@ -323,7 +380,8 @@ namespace GrammarParser {
 							}
 						);
 				}
-				if (ts.start().match(Token::TokenType::parentheses, "}").end()) {
+				if (auto a = ts.start().match(Token::TokenType::parentheses, "}").end()) {
+					ts.consumeTokens(a);
 					return res.execute<SyntaxNodes::Statements::Statement*>([](SyntaxNodes::Statements::Block* block) {
 						return block;
 					});
@@ -348,10 +406,62 @@ namespace GrammarParser {
 				ts.consumeTokens(a);
 				return Result<SyntaxNodes::Statements::Statement*>(res);
 			}
+			if (auto a = ts.start().match(Token::TokenType::keyword, "return").end()) {
+				ts.consumeTokens(a);
+				auto b = parseExpression()
+					.combine<SyntaxNodes::Statements::Statement*,SyntaxNodes::Statements::Return*>
+					([](SyntaxNodes::Expressions::Expression* exp, SyntaxNodes::Statements::Return* ret) {
+						ret->exp = exp;
+						return ret;
+				},new SyntaxNodes::Statements::Return());
+				auto c = ts.start().match(Token::TokenType::operatorSymbol, ";").end();
+				if (c) {
+					ts.consumeTokens(c);
+					return b;
+				}
+				else {
+					return ts.getValue().createError(
+						[](Token t) {
+						return InternalError_MACRO("help");
+					}).carryError<SyntaxNodes::Statements::Statement*>();
+				}
+			}
 			return ts.getValue().createError(
 				[](Token t) {
 				return Errors::UnexpectedToken(Token::TokenType::TypeId, t);
 			}).carryError<SyntaxNodes::Statements::Statement*>();
+		}
+		Result<SyntaxNodes::Expressions::Expression*> parseExpression() {
+			if (auto a = ts.start().match(Token::TokenType::Id).match(Token::TokenType::parentheses, "(").end()) {
+			
+			}
+			if (auto a = ts.start().match(Token::TokenType::Id).match(Token::TokenType::parentheses, "[").end()) {
+				
+			}
+			if (auto a = ts.start().match(Token::TokenType::Id).end()) {
+			
+			}
+			if (auto a = ts.start().match(Token::TokenType::integerLiteral).end()) {
+				SyntaxNodes::Expressions::Literal* res = new SyntaxNodes::Expressions::Literal();
+				res->value = a.tokens[0];
+				ts.consumeTokens(a);
+				return Result<SyntaxNodes::Expressions::Expression*>(res);
+			}
+			if (auto a = ts.start().match(Token::TokenType::charLiteral).end()) {
+
+			}
+			if (auto a = ts.start().match(Token::TokenType::stringLiteral).end()) {
+
+			}
+			if (auto a = ts.start().match(Token::TokenType::floatLiteral).end()) {
+
+			}
+			if (auto a = ts.start().match(Token::TokenType::parentheses, "(").end()) {
+				
+			}
+			if (auto a = ts.start().match(Token::TokenType::unaryOperatorSymbol).end()) {
+			
+			}
 		}
 		Result<SyntaxNodes::Declaration::Type> parseTypeDeclaration() {
 			return SyntaxNodes::Declaration::Type();
