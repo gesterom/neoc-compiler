@@ -1,4 +1,5 @@
 #include "CharacterStream.h"
+#include "Logger.h"
 
 CharacterStream::CharacterStream(std::string filename) {
 	std::fstream file_(filename);
@@ -11,7 +12,7 @@ CharacterStream::CharacterStream(std::string filename) {
 		else
 			file.push_back(ch);
 	}
-	debugVar((file_.good()?"TRUE" : "FALSE"));
+	//debugVar((file_.good()?"TRUE" : "FALSE"));
 	index = 0;
 	cursor.line = 1;
 	cursor.column = 1;

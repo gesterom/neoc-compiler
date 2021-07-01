@@ -15,6 +15,7 @@
 #include "CharacterStream.h"
 #include "LexerRules.h"
 #include "Tokenizer.h"
+#include "Logger.h"
 
 
 namespace GrammarParser {
@@ -185,10 +186,8 @@ namespace GrammarParser {
 				return er;
 			};
 			while (not ts.isEnd(1) and loop == true) {
-				debugLine();
 				if (auto a = ts.start().match(Token::TokenType::preamble, "procedure").end()) {
 					parseProcedureDeclaration().execute<SyntaxNodes::File>([&res](SyntaxNodes::Declaration::Procedure p) {
-						debugVar(p.name);
 						res.procedures.push_back(p);
 						return res;
 					}).onError(errorHandler);
@@ -201,13 +200,10 @@ namespace GrammarParser {
 					}).onError(errorHandler);
 					continue;
 				}
-				std::cout << "ERROR" << std::endl;
 				break;
-
 				//TODO function,class,alias
 				//auto a = parseProcedure();
 			}
-
 			return res;
 		}
 		Result<SyntaxNodes::Declaration::Varible> parseVaribleDeclaration() {
@@ -238,7 +234,6 @@ namespace GrammarParser {
 			auto func = [this,&last](SyntaxNodes::Declaration::Varible var, SyntaxNodes::Declaration::Arguments args) -> SyntaxNodes::Declaration::Arguments {
 				args.args.push_back(var);
 				last = var.type;
-				//this->ts.consumeTokens(a);
 				if (auto b = this->ts.start().match(Token::TokenType::operatorSymbol, ",").end()) {
 					this->ts.consumeTokens(b);
 				}
@@ -246,12 +241,12 @@ namespace GrammarParser {
 			};
 
 			bool loop = true;
-			while (not ts.start().match(Token::TokenType::parentheses, ")").end() && loop) {
-				debugLine();
+			while ((not ts.start().match(Token::TokenType::parentheses, ")").end()) && loop) {
 				res = parseVaribleDeclaration()
 					.combine<SyntaxNodes::Declaration::Arguments, SyntaxNodes::Declaration::Arguments>(func, res)
 					.onError(
 						[&loop](Errors::Error er) {
+							std::cout << "ERROR" << std::endl;
 							std::cout << er << std::endl;
 							loop = false;
 							return er;
@@ -276,6 +271,7 @@ namespace GrammarParser {
 
 				auto name = a.tokens[2];
 				ts.consumeTokens(a);
+
 				auto res = parseArgumentsDeclaration().combine<SyntaxNodes::Declaration::Procedure, Token>(
 					[](SyntaxNodes::Declaration::Arguments ar, Token t)-> SyntaxNodes::Declaration::Procedure {
 					SyntaxNodes::Declaration::Procedure res;
@@ -283,6 +279,7 @@ namespace GrammarParser {
 					res.args = ar;
 					return res;
 				},Result<Token>(name));
+
 				if (auto b = ts.start().match(Token::TokenType::parentheses, ")").end()) {
 					ts.consumeTokens(b); //FIXME
 					res = res.combine<SyntaxNodes::Declaration::Procedure, SyntaxNodes::Statements::Statement*>(
@@ -308,17 +305,14 @@ namespace GrammarParser {
 			if (auto a = ts.start().match(Token::TokenType::parentheses, "{").end()) {
 				ts.consumeTokens(a);
 				Result<SyntaxNodes::Statements::Block*> res(new SyntaxNodes::Statements::Block());
-				SyntaxNodes::PrintVisitor printer;
-				auto func = [&printer](SyntaxNodes::Statements::Statement* newStmt, SyntaxNodes::Statements::Block* block) {
-					debugLine();
+
+				auto func = [](SyntaxNodes::Statements::Statement* newStmt, SyntaxNodes::Statements::Block* block) {
 					block->program.push_back(newStmt);
-					newStmt->visit(&printer);
 					return block;
 				};
 
 				bool loop = true;
 				while (not ts.start().match(Token::TokenType::parentheses, "}").end() && loop) {
-					debugLine();
 					res = parseStatement()
 						.combine<SyntaxNodes::Statements::Block*, SyntaxNodes::Statements::Block*>(func, res)
 						.onError(
@@ -329,7 +323,7 @@ namespace GrammarParser {
 							}
 						);
 				}
-				if (ts.start().match(Token::TokenType::parentheses, ")").end()) {
+				if (ts.start().match(Token::TokenType::parentheses, "}").end()) {
 					return res.execute<SyntaxNodes::Statements::Statement*>([](SyntaxNodes::Statements::Block* block) {
 						return block;
 					});
@@ -337,7 +331,7 @@ namespace GrammarParser {
 				else {
 					return ts.getValue().createError(
 						[](Token t) {
-						return Errors::UnknownError(3, t.position);
+						return InternalError_MACRO("help");
 					}).carryError<SyntaxNodes::Statements::Statement*>();
 				}
 			}

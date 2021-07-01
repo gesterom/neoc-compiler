@@ -37,9 +37,11 @@ namespace Tokenizer {
 				bool allMatched = true;
 				int offset = 0;
 				std::vector<Token> tokens;
+				Token notMatchedToken;
 			};
 		private:
 			MatchResult data;
+			Iterator& match_impl(std::function<bool(Token)> );
 		public:
 			Iterator(TokenStream& ts_);
 			Iterator(Iterator&) = delete;

@@ -2,11 +2,6 @@
 #include <string>
 #include <vector>
 
-#define debugLine() do{std::cout<<"["<<__FILE__<<"] : {"<<__LINE__<<"}  "<<__FUNCSIG__  <<std::endl;}while(false)
-#define debugVar(var) do{std::cout<<"VAR : "<<(#var)<<" { "<< (var) <<" }" <<std::endl;}while(false)
-#define debugBool(var) do{std::cout<<"VAR : "<<(#var)<<" { "<< ((var)?"True":"False") <<" }" <<std::endl;}while(false)
-#define debug(var) do{std::cout<<"["<<__FILE__<<"] : {"<<__LINE__<<"}  "<<(var)<<std::endl;}while(false)
-
 struct Position {
 	int line;
 	int column;

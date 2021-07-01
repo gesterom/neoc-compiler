@@ -10,6 +10,7 @@
 #include "CharacterStream.h"
 #include "LexerRules.h"
 #include "Errors.h"
+#include "Logger.h"
 
 namespace Tokenizer {
 
@@ -83,56 +84,67 @@ namespace Tokenizer {
 	TokenStream::Iterator::Iterator(TokenStream& ts_) : ts(ts_) {
 
 	}
-	TokenStream::Iterator& TokenStream::Iterator::match(Token::TokenType type) {
+
+	TokenStream::Iterator& TokenStream::Iterator::match_impl(std::function<bool(Token t)> condition) {
+		//TODO semicolon warnings
+		int index = 0;
 		Token tok;
-		this->data.allMatched = this->data.allMatched && ts.getValue(this->data.offset).execute<bool>(
-			[type,&tok](Token t) -> bool {
-			bool res_ = t.type == type;
-			if(res_) tok = t;
+		auto offset = [&index](Iterator* it) { return it->data.offset + it->ts.index + index;};
+		auto getToken = [offset](Iterator* it) { return it->ts.tab[offset(it)];};
+		offset(this);
+
+		while ( offset(this) < this->ts.tab.size() 
+			and	(not condition(getToken(this)))
+			and (getToken(this).type == Token::TokenType::Whitespace
+				or getToken(this).type == Token::TokenType::newlineSymbol))
+		{
+			index++;
+		}
+		//FIXME
+		bool res = ts.getValue((this->data.offset + index)%(1024*1024*1024)).execute<bool>(
+			[condition, &tok](Token t) -> bool {
+			bool res_ = condition(t);
+			if (res_) tok = t;
 			return res_;
 		},
 			[](Errors::Error er) -> bool {
 			return false;
 		}
 		);
-		if (this->data.allMatched) { this->data.numberOfMatchedTokens++;}
-		this->data.tokens.push_back(tok);
-		this->data.offset++;
+
+		if (res) {
+			this->data.tokens.push_back(tok);
+		}
+		else {
+			this->data.allMatched = false;
+			this->data.notMatchedToken = tok;
+		}
+
+		if (this->data.allMatched) this->data.numberOfMatchedTokens+=1+index;
+		this->data.offset += 1 + index;
 		return *this;
+	}
+
+	TokenStream::Iterator& TokenStream::Iterator::match(Token::TokenType type) {
+
+		auto con = [type](Token t) {
+			return t.type == type;
+		};
+		return match_impl(con);
 	}
 	TokenStream::Iterator& TokenStream::Iterator::match(std::string str) {
-		Token tok;
-		this->data.allMatched = this->data.allMatched && ts.getValue(this->data.offset).execute<bool>(
-			[str,&tok](Token t) -> bool {
-			bool res_ = t.value == str;
-			if(res_) tok = t;
-			return res_;
-		},
-			[](Errors::Error er) -> bool {
-			return false;
-		}
-		);
-		if (this->data.allMatched) this->data.numberOfMatchedTokens++;
-		this->data.tokens.push_back(tok);
-		this->data.offset++;
-		return *this;
+
+		auto con = [str](Token t) {
+			return t.value == str;
+		};
+		return match_impl(con);
 	}
 	TokenStream::Iterator& TokenStream::Iterator::match(Token::TokenType type, std::string str) {
-		Token tok;
-		this->data.allMatched = this->data.allMatched && ts.getValue(this->data.offset).execute<bool>(
-			[type, str,&tok](Token t) -> bool {
-			bool res_ = t.type == type and t.value == str;
-			if(res_) tok = t;
-			return res_;
-		},
-			[](Errors::Error er) -> bool {
-			return false;
-		}
-		);
-		if (this->data.allMatched) this->data.numberOfMatchedTokens++;
-		this->data.tokens.push_back(tok);
-		this->data.offset++;
-		return *this;
+
+		auto con = [type,str](Token t) {
+			return t.value == str and t.type == type;
+		};
+		return match_impl(con);
 	}
 	TokenStream::Iterator& TokenStream::Iterator::optional(Token::TokenType type) {
 		Token tok;

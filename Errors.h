@@ -3,6 +3,8 @@
 
 #include "Structs.h"
 
+#define InternalError_MACRO(x) [](std::string msg){std::cerr<<"["<<__FILE__<<":"<<__LINE__<<"] Internal unexpected error : "<<msg<<std::endl;return Errors::InternalError{__FILE__,__LINE__};}(x)
+
 namespace Errors {
 	class Error {
 	public:
@@ -11,9 +13,15 @@ namespace Errors {
 		std::string mesage;
 		Error() {}
 		std::string formater(Position pos, std::string msg) {
-			return pos.toString() + " " + msg;
+			return pos.toString() + "Error : " + msg;
 		}
 		virtual std::string getMesage() { return this->mesage; }
+	};
+	class InternalError : public Error {
+	public:
+		InternalError(std::string filename,int lineNumber) {
+			this->mesage = std::string("[") + filename + ":" + std::to_string(lineNumber) + "] Internal unexpected error";
+		}
 	};
 	class UnexpectedEndOfFile : public Error {
 	public:

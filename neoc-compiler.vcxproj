@@ -161,6 +161,7 @@
     <ClInclude Include="Errors.h" />
     <ClInclude Include="IReadStream.h" />
     <ClInclude Include="LexerRules.h" />
+    <ClInclude Include="Logger.h" />
     <ClInclude Include="Result.h" />
     <ClInclude Include="Structs.h" />
     <ClInclude Include="Tokenizer.h" />
