@@ -46,6 +46,17 @@ namespace Parser {
 		return *this;
 	}
 
+	TokenStream& TokenStream::remove(std::function<bool(Token&)> func) {
+		std::vector<Token> res;
+		for (auto item : tab) {
+			if (not func(item)) {
+				res.push_back(item);
+			}
+		}
+		this->tab = res;
+		return* this;
+	}
+
 	size_t startingIndex(size_t tabSize, size_t predictorsSize) {
 		if (predictorsSize > tabSize) return 0;
 		else {
@@ -301,6 +312,45 @@ namespace Parser {
 			.matchArguments()
 			.match(Token::TokenType::parentheses, ")");
 
+		return *this;
+	}
+
+	TokenStream::Iterator& TokenStream::Iterator::matchStatement() {
+		if (this->data.allMatched == false) return *this;
+		auto copy = this->data;
+		//block stmt
+		if (this->match(Token::TokenType::parentheses, "{").matchStatement().match(Token::TokenType::parentheses, "}").end()) return *this;
+		
+		//Varible declaration stmt;
+		this->data = copy;
+		if (this->matchVaribleDeclaration().match(Token::TokenType::semicolonSymbol).end()) return *this;
+
+		//TODO if,switch,for,while, send, lambda;
+		this->data = copy;
+		if (this->matchReturn().end()) return *this;
+		this->data = copy;
+		if (this->match(Token::TokenType::keyword, "if")
+			.match(Token::TokenType::parentheses, "(")
+			.matchExpression()
+			.match(Token::TokenType::parentheses, ")")
+			.matchStatement().end()) 
+				return *this;
+
+		this->data = copy;
+		if (this->match(Token::TokenType::keyword, "while")
+			.match(Token::TokenType::parentheses, "(")
+			.matchExpression()
+			.match(Token::TokenType::parentheses, ")")
+			.matchStatement().end()) 
+				return *this;
+
+		//expression stmt
+		this->data = copy;
+		if (this->matchExpression().match(Token::TokenType::semicolonSymbol).end()) return *this;
+
+		//empty stmt;
+		this->data = copy;
+		if (this->match(Token::TokenType::semicolonSymbol).end()) return *this;
 		return *this;
 	}
 }

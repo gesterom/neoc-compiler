@@ -150,6 +150,43 @@ namespace Parser {
 		});
 	}
 
+	void removeSingielComments(TokenStream& ts) {
+		bool commentActive = false;
+		ts.remove([&commentActive](Token t) {
+			if (t.type == Token::TokenType::singielComment)
+				commentActive = true;
+			if (t.type == Token::TokenType::newlineSymbol)
+				commentActive = false;
+			return commentActive;
+		});
+	}
+
+	Result<TokenStream> removeMultiLineComments(TokenStream& ts) {
+		int commentActive = 0;
+		Token lastUP;
+		Token lastDown;
+		ts.remove([&commentActive,&lastUP,&lastDown](Token t) -> bool{
+			if (t.type == Token::TokenType::multiComment and t.value == "/*") {
+				commentActive++;
+				lastUP = t;
+			}
+			if (t.type == Token::TokenType::multiComment and t.value == "*/") {
+				commentActive--;
+				if (commentActive < 0) {
+					lastDown = t;
+				}
+			}
+			return commentActive > 0;
+		});
+		if (commentActive > 0) {
+			return Result<TokenStream>(Errors::UnexpectedToken(lastUP));
+		}
+		if (commentActive < 0){
+			return Result<TokenStream>(Errors::UnexpectedToken(lastDown));
+		}
+		return Result<TokenStream>(ts);
+	}
+
 	void combieneNumbersIntoFloats(TokenStream& ts) {
 
 		auto numberPredictor = [](Token t) {return t.type == Token::TokenType::integerLiteral;};
@@ -212,6 +249,7 @@ namespace Parser {
 		replaceToken(Token::TokenType::operatorSymbol, ";", Token::TokenType::semicolonSymbol, "(;)")(ts);
 		combieneNumbersIntoFloats(ts);
 		combieneIntoNamsepace(ts);
-		return Result<TokenStream>(ts);
+		removeSingielComments(ts);
+		return removeMultiLineComments(ts);
 	}
 }

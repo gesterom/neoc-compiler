@@ -13,6 +13,7 @@ namespace Parser {
 		virtual void popValue(int numberOfElementsToPop);
 		TokenStream& resetStream();
 		TokenStream& modify(std::function<void(Token&)> func);
+		TokenStream& remove(std::function<bool(Token&)> func);
 
 		typedef std::function<bool(Token)> tokenPredictor;
 		typedef std::function<Token(std::vector<Token>)> tokenProducer;
@@ -47,6 +48,7 @@ namespace Parser {
 
 			Iterator& matchReturn();
 			Iterator& matchExpression();
+			Iterator& matchStatement();
 			Iterator& matchVaribleDeclaration();
 			Iterator& matchProcedureDeclaration();
 			Iterator& matchArguments();
