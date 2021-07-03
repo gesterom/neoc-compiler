@@ -1,14 +1,6 @@
 #pragma once
-
-#include <vector>
-
-#include "Result.h"
-#include "IReadStream.h"
-#include "CharacterStream.h"
-#include "LexerRules.h"
-
-namespace Tokenizer {
-	class TokenStream : IReadStream<Token> {
+namespace Parser {
+	class TokenStream {
 		size_t index = 0;
 		std::vector<Token> tab;
 	public:
@@ -41,7 +33,8 @@ namespace Tokenizer {
 			};
 		private:
 			MatchResult data;
-			Iterator& match_impl(std::function<bool(Token)> );
+			MatchResult orState;
+			Iterator& match_impl(std::function<bool(Token)>);
 		public:
 			Iterator(TokenStream& ts_);
 			Iterator(Iterator&) = delete;
@@ -51,41 +44,20 @@ namespace Tokenizer {
 			Iterator& match(Token::TokenType type);
 			Iterator& match(std::string str);
 			Iterator& match(Token::TokenType type, std::string str);
+			Iterator& matchReturn();
+			Iterator& matchExpression();
+
+
+
 			Iterator& optional(Token::TokenType type);
 			Iterator& optional(std::string str);
 			Iterator& optional(Token::TokenType type, std::string str);
+			Iterator& or_();
+
 			MatchResult	end();
+			MatchResult orResult();
 		};
 		TokenStream& consumeTokens(Iterator::MatchResult mr);
 		Iterator start();
-	};
-
-	std::ostream& operator<<(std::ostream& out, TokenStream::Iterator::MatchResult it);
-
-	struct expectTokenRes {
-		bool matched;
-		Token token;
-		int consumed;
-		expectTokenRes();
-		expectTokenRes(Token token);
-		expectTokenRes(Token token, int consumed);
-	};
-	std::ostream& operator<<(std::ostream& out, expectTokenRes e);
-
-	Result<expectTokenRes> expectKeyword(const CharacterStream cs, std::string keyword, Token::TokenType type);
-
-	Result<expectTokenRes> expectOperator(const CharacterStream cs, std::string keyword, Token::TokenType type);
-
-	Result<expectTokenRes> expectLiteral(const CharacterStream cs, LexerRules::LiteralDefiniton literal);
-
-	Result < expectTokenRes > carryToken(expectTokenRes a, expectTokenRes b);
-
-	Result < expectTokenRes >  ignoreLiterals(expectTokenRes a, expectTokenRes b);
-
-
-	class Tokenizer {
-	public:
-		Result<TokenStream> tokenize(CharacterStream cs);
-		Result<Token> getToken(CharacterStream& cs);
 	};
 }

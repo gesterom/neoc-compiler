@@ -1,9 +1,0 @@
-procedure main(){
-	Int returner;
-
-	returner=3+4*2;
-	returner=returner + 1005;
-	returner= 123.456;
-
-	return 0;
-}

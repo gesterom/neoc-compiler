@@ -1,8 +1,6 @@
 #pragma once
-#include <functional>
 
 #include "Errors.h"	
-
 
 template<typename ResultType>
 class Result {
@@ -22,7 +20,7 @@ public:
 		error = value;
 	}
 
-	bool isError() { return not isOk; }
+	bool isError() { return ! isOk; }
 
 	template<typename T>
 	Result<T> execute(std::function<T(ResultType)> function) {
@@ -66,21 +64,10 @@ public:
 	Result<T> carryError() {
 		return Result<T>(this->error);
 	}
-	template<typename T,typename R>
-	Result<T> combine(std::function<T(ResultType, R)> func,Result<R> right) {
-		//if (this->isError() and right.isError()) {
-		//	return Result<T>(Errors::CombineError(this->error, right.error));
-		//}
-		//if (this->isError()) {
-		//	return Result<T>(this->error);
-		//}
-		//if (right.isError()) {
-		//	return Result<T>(right.error);
-		//}
-		//return Result<T>(func(this->res, right.res));
-
+	template<typename T, typename R>
+	Result<T> combine(std::function<T(ResultType, R)> func, Result<R> right) {
 		return right.execute< Result<T> >(
-			[this,func](R rv) {
+			[this, func](R rv) {
 			if (this->isError()) return this->carryError<T>();
 			else return Result<T>(func(this->res, rv));
 		},
@@ -97,26 +84,29 @@ public:
 			return Result<ResultType>(func(this->res));
 	}
 
+	ResultType unpack() {
+		if (this->isError()) {
+			exit(-1);
+		}
+		else {
+			return this->res;
+		}
+	}
+
 	template<typename T, typename R>
 	Result<T> flatCombine(std::function<Result<T>(ResultType, R)> func, Result<R> right) {
 		if (this->isError() and right.isError()) {
-			//debugLine();
-			//debugVar(Errors::CombineError(this->error, right.error));
 			return Result<T>(Errors::CombineError(this->error, right.error));
 		}
 		if (this->isError()) {
-			//debugLine();
-			//debugVar(this->error);
 			return Result<T>(this->error);
 		}
 		if (right.isError()) {
-			//debugLine();
-			//debugVar(right.error);
 			return Result<T>(right.error);
 		}
 		return (func(this->res, right.res));
 	}
-	Result<ResultType> select(Result<ResultType> right, std::function<ResultType(ResultType, ResultType)> func ) {
+	Result<ResultType> select(Result<ResultType> right, std::function<ResultType(ResultType, ResultType)> func) {
 		if (this->isError() and right.isError()) {
 			return Result<ResultType>(Errors::CombineError(this->error, right.error));
 		}
