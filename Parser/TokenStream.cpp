@@ -250,7 +250,7 @@ namespace Parser {
 			if (this->match(type).end()) {
 				auto a = this->data;
 				this->data = data_copy;
-				if (this->match(Token::TokenType::charLiteral).match(Token::TokenType::operatorSymbol).matchExpression().end()) {
+				if (this->match(type).match(Token::TokenType::operatorSymbol).matchExpression().end()) {
 					return true;
 				}
 				else {
@@ -271,6 +271,36 @@ namespace Parser {
 	TokenStream::Iterator& TokenStream::Iterator::matchReturn() {
 		if (this->data.allMatched == false) return *this;
 		this->match(Token::TokenType::keyword, "return").matchExpression().match(Token::TokenType::semicolonSymbol);
+		return *this;
+	}
+
+	TokenStream::Iterator& TokenStream::Iterator::matchVaribleDeclaration() {
+		if (this->data.allMatched == false) return *this;
+		this->match(Token::TokenType::TypeId).match(Token::TokenType::Id);
+		return *this;
+	}
+
+	TokenStream::Iterator& TokenStream::Iterator::matchArguments() {
+		if (this->data.allMatched == false) return *this;
+		this->matchVaribleDeclaration();
+		auto copy = this->data;
+		if (this->match(Token::TokenType::operatorSymbol, ",").end()) {
+			this->matchArguments();
+		}
+		else {
+			this->data = copy;
+		}
+		return *this;
+	}
+
+	TokenStream::Iterator& TokenStream::Iterator::matchProcedureDeclaration() {
+		if (this->data.allMatched == false) return *this;
+		this->match(Token::TokenType::preamble, "procedure")
+			.match(Token::TokenType::Id)
+			.match(Token::TokenType::parentheses, "(")
+			.matchArguments()
+			.match(Token::TokenType::parentheses, ")");
+
 		return *this;
 	}
 }

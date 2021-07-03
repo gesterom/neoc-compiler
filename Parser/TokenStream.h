@@ -44,9 +44,12 @@ namespace Parser {
 			Iterator& match(Token::TokenType type);
 			Iterator& match(std::string str);
 			Iterator& match(Token::TokenType type, std::string str);
+
 			Iterator& matchReturn();
 			Iterator& matchExpression();
-
+			Iterator& matchVaribleDeclaration();
+			Iterator& matchProcedureDeclaration();
+			Iterator& matchArguments();
 
 
 			Iterator& optional(Token::TokenType type);
