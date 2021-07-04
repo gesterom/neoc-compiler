@@ -7,7 +7,8 @@ namespace Parser {
 
 		public: 
 			GrammarParser(TokenStream ts);
-			SyntaxNodes::File* parseFile();
+			SyntaxNodes::File parseFile();
+			SyntaxNodes::Declaration::Procedure parseProcedure();
 		};
 	}
 }
