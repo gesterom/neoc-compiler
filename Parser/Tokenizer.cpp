@@ -52,7 +52,7 @@ namespace Parser {
 	Result<Tokenizer::expectTokenRes> expectLiteral(const CharacterStream cs, LexerRules::LiteralDefiniton literal) {
 		auto a = cs.getValue();
 		if (a.isError()) return a.carryError<Tokenizer::expectTokenRes>();
-		auto ch = a.valueOr(Character());
+		auto ch = a.unpack();
 		if (literal.start(ch.value)) {
 			std::string tokenValue;
 			if (literal.consumeStarting)
@@ -64,10 +64,10 @@ namespace Parser {
 						return Result<Tokenizer::expectTokenRes>(Errors::UnendedLiteral(cs.getCursor()));
 					else { break; }
 				}
-				if (not literal.stop(b.valueOr(' ')) or literal.consumeStoping) {
-					tokenValue += (char)b.valueOr(' ');
+				if (not literal.stop(b.unpack()) or literal.consumeStoping) {
+					tokenValue += (char)b.unpack();
 				}
-				if (literal.stop(b.valueOr(' '))) break;
+				if (literal.stop(b.unpack())) break;
 			}
 			int padding = 0;
 			if (literal.consumeStoping == false and literal.skipStoping == true) {

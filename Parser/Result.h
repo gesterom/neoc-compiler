@@ -1,36 +1,104 @@
 #pragma once
 
 #include "Errors.h"	
+#include "Logger.h"
 
 template<typename ResultType>
 class Result {
-	ResultType res;
+	ResultType* res = nullptr;
 	Errors::Error error;
 	bool isOk;
 	Result() = delete;
 public:
+
 	Result(ResultType value) {
+		res = new ResultType(value);
+		assert(res != nullptr);
+		//*res = value;
+		isOk = true;
+		//error = nullptr;
+	}
+	Result(ResultType* value) {
+		assert(value != nullptr);
 		res = value;
 		isOk = true;
 		//error = nullptr;
 	}
 	Result(Errors::Error value) {
-		//res = nullptr;
+		res = nullptr;
 		isOk = false;
 		error = value;
 	}
 
-	bool isError() { return ! isOk; }
+	Result(Result<ResultType>& other){
+		if (other.isOk == false) {
+			this->res = nullptr;
+			this->error = other.error;
+			this->isOk = false;
+			return;
+		}
+		else if(other.res != nullptr){
+			res = new ResultType(*(other.res));
+			assert(res != nullptr);
+			isOk = true;
+		}
+		else {
+			//INTERNAL
+			exit(-2);
+		}
+	}
+
+	Result(Result<ResultType>&& other) {
+		if (this == &other) return;
+		this->res = other.res;
+		this->error = other.error;
+		this->isOk = other.isOk;
+		other.res = nullptr;
+	}
+	Result<ResultType> operator=(Result<ResultType>& other) {
+		if (other.isOk == false) {
+			this->error = other.error;
+			this->isOk = false;
+			this->res = nullptr;
+			return;
+		}
+		else if (other.res != nullptr) {
+			res = new ResultType(*(other.res));
+			assert(res != nullptr);
+			isOk = true;
+		}
+		else {
+			//INTERNAL
+			exit(-2);
+		}
+	}
+
+	Result<ResultType> operator=(Result<ResultType>&& other) {
+		if (this == &other) return *this;
+		this->res = other.res;
+		this->error = other.error;
+		this->isOk = other.isOk;
+		other.res = nullptr;
+		return *this;
+	}
+
+	bool isError() { return !isOk; }
 
 	template<typename T>
-	Result<T> execute(std::function<T(ResultType)> function) {
+	Result<T> execute(std::function<T(const ResultType&)> function) {
 		if (this->isError() == false) {
-			return Result<T>(function(this->res));
+			return Result<T>(function(*(this->res)));
 		}
 		return Result<T>{ this->error };
 	}
+
 	template<typename T>
-	Result<T> flatExecute(std::function<Result<T>(ResultType)> function) {
+	Result<T> operator&(std::function<T(const ResultType&)> function) {
+		return this->execute<T>(function);
+	}
+
+	template<typename T>
+	Result<T> flatExecute(std::function<Result<T>(const ResultType&)> function) {
 		if (this->isError() == false) {
 			return (function(this->res));
 		}
@@ -39,33 +107,36 @@ public:
 
 	Result<ResultType> modify(std::function<void(ResultType&)> func) {
 		if (this->isError() == false) {
-			(func(this->res));
+			(func(*this->res));
 			return *this;
 		}
 		return *this;
 	}
 
 	template<typename T>
-	T execute(std::function<T(ResultType)> function, std::function<T(Errors::Error)> errorFunction) {
+	T execute(std::function<T(const ResultType&)> function, std::function<T(Errors::Error)> errorFunction) {
 		if (this->isError()) {
 			return errorFunction(this->error);
 		}
 		else {
-			return function(this->res);
+			return function(*(this->res));
 		}
 	}
+
 	Result<ResultType> onError(std::function<Errors::Error(Errors::Error)> function) {
 		if (this->isError() == true) {
 			return Result<ResultType>(function(this->error));
 		}
-		return  this->res;
+		return *this;
 	}
+
 	template<typename T>
 	Result<T> carryError() {
 		return Result<T>(this->error);
 	}
+
 	template<typename T, typename R>
-	Result<T> combine(std::function<T(ResultType, R)> func, Result<R> right) {
+	Result<T> combine(std::function<T(const ResultType&, R)> func, Result<R> right) {
 		return right.execute< Result<T> >(
 			[this, func](R rv) {
 			if (this->isError()) return this->carryError<T>();
@@ -77,24 +148,31 @@ public:
 		});
 	}
 
-	Result<ResultType> createError(std::function<Errors::Error(ResultType)> func) {
+	Result<ResultType> createError(std::function<Errors::Error(const ResultType&)> func) {
 		if (this->isError())
 			return *this;
 		else
 			return Result<ResultType>(func(this->res));
 	}
 
-	ResultType unpack() {
+
+	//ResultType* valueOr(ResultType* defaultValue) {
+	//	if (this->isError()) return defaultValue;
+	//	else return (this->res);
+	//}
+
+	ResultType& unpack() {
 		if (this->isError()) {
+			//internall
 			exit(-1);
 		}
 		else {
-			return this->res;
+			return *(this->res);
 		}
 	}
 
 	template<typename T, typename R>
-	Result<T> flatCombine(std::function<Result<T>(ResultType, R)> func, Result<R> right) {
+	Result<T> flatCombine(std::function<Result<T>(const ResultType&, R)> func, Result<R> right) {
 		if (this->isError() and right.isError()) {
 			return Result<T>(Errors::CombineError(this->error, right.error));
 		}
@@ -104,9 +182,9 @@ public:
 		if (right.isError()) {
 			return Result<T>(right.error);
 		}
-		return (func(this->res, right.res));
+		return (func(*(this->res), *(right.res)));
 	}
-	Result<ResultType> select(Result<ResultType> right, std::function<ResultType(ResultType, ResultType)> func) {
+	Result<ResultType> select(Result<ResultType> right, std::function<ResultType(const ResultType&,const ResultType&)> func) {
 		if (this->isError() and right.isError()) {
 			return Result<ResultType>(Errors::CombineError(this->error, right.error));
 		}
@@ -116,9 +194,9 @@ public:
 		if (right.isError()) {
 			return Result<ResultType>(this->res);
 		}
-		return Result<ResultType>(func(this->res, right.res));
+		return Result<ResultType>(func(*(this->res), *(right.res)));
 	}
-	Result<ResultType> flatSelect(Result<ResultType> right, std::function<Result<ResultType>(ResultType, ResultType)> func) {
+	Result<ResultType> flatSelect(Result<ResultType> right, std::function<Result<ResultType>(const ResultType&,const ResultType&)> func) {
 		if (this->isError() and right.isError()) {
 			return Result<ResultType>(Errors::CombineError(this->error, right.error));
 		}
@@ -128,17 +206,13 @@ public:
 		if (right.isError()) {
 			return Result<ResultType>(this->res);
 		}
-		return (func(this->res, right.res));
+		return (func(*(this->res),*( right.res)));
 	}
 	Result<ResultType> solveError(std::function<ResultType()> func) {
 		if (this->isError()) {
 			return Result<ResultType>(func());
 		}
 		return *this;
-	}
-	ResultType valueOr(ResultType defaultValue) {
-		if (this->isError()) return defaultValue;
-		else return this->res;
 	}
 	bool operator==(ResultType other) {
 		if (this->isError()) return false;
@@ -152,5 +226,13 @@ public:
 		else {
 			return res->res;
 		}
+	}
+
+	operator bool() {
+		return (this->isOk);
+	}
+
+	~Result() {
+		delete res;
 	}
 };
