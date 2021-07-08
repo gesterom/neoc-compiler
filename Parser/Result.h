@@ -1,18 +1,19 @@
 #pragma once
 
+#include <memory>
+
 #include "Errors.h"	
 #include "Logger.h"
 
 template<typename ResultType>
 class Result {
-	ResultType* res = nullptr;
+	std::shared_ptr<ResultType> res;
 	Errors::Error error;
-	bool isOk;
-	Result() = delete;
+	bool isOk = false;
 public:
-
+	Result() : Result(Errors::Error{}) {} 
 	Result(ResultType value) {
-		res = new ResultType(value);
+		res = std::make_shared<ResultType>(value);
 		assert(res != nullptr);
 		//*res = value;
 		isOk = true;
@@ -20,7 +21,7 @@ public:
 	}
 	Result(ResultType* value) {
 		assert(value != nullptr);
-		res = value;
+		res.reset(value);
 		isOk = true;
 		//error = nullptr;
 	}
@@ -30,7 +31,7 @@ public:
 		error = value;
 	}
 
-	Result(Result<ResultType>& other){
+	Result(const Result<ResultType>& other){
 		if (other.isOk == false) {
 			this->res = nullptr;
 			this->error = other.error;
@@ -38,7 +39,7 @@ public:
 			return;
 		}
 		else if(other.res != nullptr){
-			res = new ResultType(*(other.res));
+			res = other.res;
 			assert(res != nullptr);
 			isOk = true;
 		}
@@ -47,33 +48,34 @@ public:
 			exit(-2);
 		}
 	}
+	Result<ResultType>& operator=(const Result<ResultType>& other) {
+		if (other.isOk == false) {
+			this->error = other.error;
+			this->isOk = false;
+			this->res = nullptr;
+			return *this;
+		}
+		else if (other.res != nullptr) {
+			res = other.res;
+			assert(res != nullptr);
+			isOk = true;
+			return *this;
+		}
+		else {
+			//INTERNAL
+			exit(-2);
+		}
+	}
 
-	Result(Result<ResultType>&& other) {
+	Result(Result<ResultType>&& other) noexcept {
 		if (this == &other) return;
 		this->res = other.res;
 		this->error = other.error;
 		this->isOk = other.isOk;
 		other.res = nullptr;
 	}
-	Result<ResultType> operator=(Result<ResultType>& other) {
-		if (other.isOk == false) {
-			this->error = other.error;
-			this->isOk = false;
-			this->res = nullptr;
-			return;
-		}
-		else if (other.res != nullptr) {
-			res = new ResultType(*(other.res));
-			assert(res != nullptr);
-			isOk = true;
-		}
-		else {
-			//INTERNAL
-			exit(-2);
-		}
-	}
 
-	Result<ResultType> operator=(Result<ResultType>&& other) {
+	Result<ResultType>& operator=(Result<ResultType>&& other) noexcept {
 		if (this == &other) return *this;
 		this->res = other.res;
 		this->error = other.error;
@@ -82,7 +84,7 @@ public:
 		return *this;
 	}
 
-	bool isError() { return !isOk; }
+	bool isError() const { return !isOk; }
 
 	template<typename T>
 	Result<T> execute(std::function<T(const ResultType&)> function) {
@@ -105,7 +107,7 @@ public:
 		return Result<T>{ this->error };
 	}
 
-	Result<ResultType> modify(std::function<void(ResultType&)> func) {
+	Result<ResultType>& modify(std::function<void(ResultType&)> func) {
 		if (this->isError() == false) {
 			(func(*this->res));
 			return *this;
@@ -123,22 +125,24 @@ public:
 		}
 	}
 
-	Result<ResultType> onError(std::function<Errors::Error(Errors::Error)> function) {
+	Result<ResultType>& onError(std::function<Errors::Error(Errors::Error)> function) {
 		if (this->isError() == true) {
-			return Result<ResultType>(function(this->error));
+			this->error = function(this->error);
+			return *this;
 		}
 		return *this;
 	}
 
 	template<typename T>
 	Result<T> carryError() {
+		assert(this->isError());
 		return Result<T>(this->error);
 	}
 
 	template<typename T, typename R>
 	Result<T> combine(std::function<T(const ResultType&, R)> func, Result<R> right) {
 		return right.execute< Result<T> >(
-			[this, func](R rv) {
+			[this, func](R& rv) {
 			if (this->isError()) return this->carryError<T>();
 			else return Result<T>(func(this->res, rv));
 		},
@@ -148,11 +152,15 @@ public:
 		});
 	}
 
-	Result<ResultType> createError(std::function<Errors::Error(const ResultType&)> func) {
+	Result<ResultType>& createError(std::function<Errors::Error(const ResultType&)> func) {
 		if (this->isError())
 			return *this;
 		else
-			return Result<ResultType>(func(this->res));
+		{
+			this->error = (func(*(this->res)));
+			this->isOk = false;
+			return *this;
+		}
 	}
 
 
@@ -170,9 +178,18 @@ public:
 			return *(this->res);
 		}
 	}
+	std::shared_ptr<ResultType>& unpackVirtual() {
+		if (this->isError()) {
+			//internall
+			exit(-2);
+		}
+		else {
+			return this->res;
+		}
+	}
 
 	template<typename T, typename R>
-	Result<T> flatCombine(std::function<Result<T>(const ResultType&, R)> func, Result<R> right) {
+	Result<T> flatCombine(std::function<Result<T>(const ResultType&, R)> func,const Result<R>& right) {
 		if (this->isError() and right.isError()) {
 			return Result<T>(Errors::CombineError(this->error, right.error));
 		}
@@ -184,7 +201,7 @@ public:
 		}
 		return (func(*(this->res), *(right.res)));
 	}
-	Result<ResultType> select(Result<ResultType> right, std::function<ResultType(const ResultType&,const ResultType&)> func) {
+	Result<ResultType> select(const Result<ResultType>& right, std::function<ResultType(const ResultType&,const ResultType&)> func) {
 		if (this->isError() and right.isError()) {
 			return Result<ResultType>(Errors::CombineError(this->error, right.error));
 		}
@@ -196,15 +213,15 @@ public:
 		}
 		return Result<ResultType>(func(*(this->res), *(right.res)));
 	}
-	Result<ResultType> flatSelect(Result<ResultType> right, std::function<Result<ResultType>(const ResultType&,const ResultType&)> func) {
+	Result<ResultType> flatSelect(const Result<ResultType>& right, std::function<Result<ResultType>(const ResultType&,const ResultType&)> func) {
 		if (this->isError() and right.isError()) {
 			return Result<ResultType>(Errors::CombineError(this->error, right.error));
 		}
 		if (this->isError()) {
-			return Result<ResultType>(right.res);
+			return right;
 		}
 		if (right.isError()) {
-			return Result<ResultType>(this->res);
+			return *this;
 		}
 		return (func(*(this->res),*( right.res)));
 	}
@@ -214,12 +231,15 @@ public:
 		}
 		return *this;
 	}
-	bool operator==(ResultType other) {
+
+
+
+	bool operator==(const ResultType& other) const {
 		if (this->isError()) return false;
 		else
 			return this->res == other;
 	}
-	std::string toString() {
+	std::string toString() const {
 		if (res->isError()) {
 			return res->error.toString();
 		}
@@ -228,11 +248,8 @@ public:
 		}
 	}
 
-	operator bool() {
+	operator bool() const {
 		return (this->isOk);
 	}
 
-	~Result() {
-		delete res;
-	}
 };

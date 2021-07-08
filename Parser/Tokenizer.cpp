@@ -107,7 +107,8 @@ namespace Parser {
 		Result< expectTokenRes > res{ expectTokenRes() };
 		int counter = 0;
 
-		auto perfectMatch = [](Parser::CharacterStream& cs, expectMatch func ,std::vector<std::string> vec, Token::TokenType type,Result<expectTokenRes> res) {
+		auto perfectMatch = [](Parser::CharacterStream& cs, expectMatch func ,std::vector<std::string> vec, Token::TokenType type,Result<expectTokenRes>& res)
+		-> Result<expectTokenRes>& {
 			for (auto item : vec) {
 				res = func(cs, item, type)
 					.flatCombine<Tokenizer::expectTokenRes,Tokenizer::expectTokenRes>(carryToken,res);
@@ -116,8 +117,6 @@ namespace Parser {
 		};
 		res;
 		res = perfectMatch(cs, expectKeyword,	LexerRules::preambleList,				Token::TokenType::preamble,					res);
-
-		res;
 		res = perfectMatch(cs, expectKeyword,	LexerRules::keywordList,				Token::TokenType::keyword,					res);
 		res = perfectMatch(cs, expectOperator,	LexerRules::operatorList,				Token::TokenType::operatorSymbol,			res);
 		res = perfectMatch(cs, expectOperator,	LexerRules::unaryOperatorList,			Token::TokenType::unaryOperatorSymbol,		res);

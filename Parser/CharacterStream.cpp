@@ -7,7 +7,7 @@ namespace Parser {
 		char ch;
 		while (file_.get(ch).good()) {
 			if (ch == EOF) break;
-			if (ch == '\n' and file[file.size() - 1] == '\r') {
+			if (file.size() > 0 and ch == '\n' and file[file.size() - 1] == '\r') {
 				file[file.size() - 1] = '\n';
 			}
 			else

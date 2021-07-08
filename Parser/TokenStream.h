@@ -1,16 +1,18 @@
 #pragma once
 namespace Parser {
 	class TokenStream {
-		size_t index = 0;
 		std::vector<Token> tab;
+		bool match_impl(std::function<bool(Token t)> condition);
+		size_t index = 0;
 	public:
 		TokenStream();
 		TokenStream(std::vector<Token> vec);
-		virtual bool isEnd(int64_t offset) const;
-		virtual Result<Token> getValue() const;
+		bool isEnd(int64_t offset) const;
+		Result<Token> getValue() const;
+		Result<Token> getPopValue();
 		Result<Token> getValue(int64_t n) const;
-		virtual Result<std::vector<Token>> getValues(int numberOfElementsToGet) const;
-		virtual void popValue(int numberOfElementsToPop);
+		Result<std::vector<Token>> getValues(int numberOfElementsToGet) const;
+		void popValue(int numberOfElementsToPop);
 		TokenStream& resetStream();
 		TokenStream& modify(std::function<void(Token&)> func);
 		TokenStream& remove(std::function<bool(Token&)> func);
@@ -19,7 +21,12 @@ namespace Parser {
 		typedef std::function<Token(std::vector<Token>)> tokenProducer;
 
 		TokenStream& colapsTokensIntoOne(std::vector<tokenPredictor> predictors, tokenProducer producer);
-		class MatchResult;
+		bool match(Token::TokenType type);
+		bool match(std::string str);
+		bool match(Token::TokenType type, std::string str);
+		size_t getIndex();
+		void resetIndex(size_t newIndex);
+		/*class MatchResult;
 		class Iterator {
 			TokenStream& ts;
 		public:
@@ -34,7 +41,6 @@ namespace Parser {
 			};
 		private:
 			MatchResult data;
-			MatchResult orState;
 			Iterator& match_impl(std::function<bool(Token)>);
 		public:
 			Iterator(TokenStream& ts_);
@@ -46,23 +52,9 @@ namespace Parser {
 			Iterator& match(std::string str);
 			Iterator& match(Token::TokenType type, std::string str);
 
-			Iterator& matchReturn();
-			Iterator& matchExpression();
-			Iterator& matchStatement();
-			Iterator& matchVaribleDeclaration();
-			Iterator& matchProcedureDeclaration();
-			Iterator& matchArguments();
-
-
-			Iterator& optional(Token::TokenType type);
-			Iterator& optional(std::string str);
-			Iterator& optional(Token::TokenType type, std::string str);
-			Iterator& or_();
-
 			MatchResult	end();
-			MatchResult orResult();
 		};
 		TokenStream& consumeTokens(Iterator::MatchResult mr);
-		Iterator start();
+		Iterator start();*/
 	};
 }
